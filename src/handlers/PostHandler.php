@@ -22,7 +22,8 @@ class PostHandler {
         }
     }
 
-    public static function getHomeFeed($idUser) {
+    public static function getHomeFeed($idUser, $page) {
+        $perPage = 2;
 
         $userList = UserRelation::select()->where('user_from', $idUser)->get();
         $users = [];
@@ -34,15 +35,26 @@ class PostHandler {
         $postList = Post::select()
             ->where('id_user', 'in', $users)
             ->orderBy('created_at', 'desc')
+            ->page($page,$perPage)
         ->get();
 
-        $post = [];
+        $total = Post::select()
+            ->where('id_user', 'in', $users)
+        ->count();
+        $pageCount = ceil($total / $perPage);
+
+        $posts = [];
         foreach($postList as $postItem) {
             $newPost = new Post();
             $newPost->id = $postItem['id'];
             $newPost->type = $postItem['type'];
             $newPost->created_at = $postItem['created_at'];
             $newPost->body = $postItem['body'];
+            $newPost->mine = false;
+
+            if($postItem['id_user'] == $idUser) {
+                $newPost->mine = true;
+            }
 
             $newUser = User::select()->where('id', $postItem['id_user'])->one();
             $newPost->user = new User();
@@ -50,10 +62,21 @@ class PostHandler {
             $newPost->user->name = $newUser['name'];
             $newPost->user->avatar = $newUser['avatar'];
 
+            //To do: 4.1 preencher informações de LIKE
+            $newPost->likeCount = 0;
+            $newPost->liked = false;
+
+            //To do: 4.2 preencher informações de COMMENTS
+            $newPost->comments = [];
+
             $posts[] = $newPost;
         }
 
-        return $posts;
+        return [
+            'posts' => $posts,
+            'pageCount' => $pageCount,
+            'currentPage' =>$page
+        ];
 
     }
 
